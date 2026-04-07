@@ -240,6 +240,7 @@
             <header class="topbar">
                 <h1>Completion Bar</h1>
                 <p class="muted">Click any day to see attendance details, task log entries, notes, and mentor scoring.</p>
+                <p class="muted">Target days are calculated from your PKL start and end dates, excluding Friday, Saturday, and Sunday.</p>
                 <div class="progress-meta">
                     <span>You have completed {{ $completedDays }} out of {{ $targetDays }} days.</span>
                     <span>{{ $progressPercent }}%</span>

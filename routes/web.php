@@ -5,6 +5,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -91,13 +92,44 @@ Route::middleware('auth')->group(function () {
             ->whereDate('week_end_date', $weekEnd)
             ->first();
 
-        $completedDays = DB::table('attendances')
-            ->where('student_id', $user->id)
-            ->whereNotNull('check_out_at')
-            ->count();
+        $profile = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles')
+                ->where('student_id', $user->id)
+                ->first(['pkl_start_date', 'pkl_end_date'])
+            : null;
 
-        $targetDays = 90;
-        $progressPercent = min(100, (int) round(($completedDays / $targetDays) * 100));
+        $pklStartDate = data_get($profile, 'pkl_start_date');
+        $pklEndDate = data_get($profile, 'pkl_end_date');
+        $hasPklRange = !empty($pklStartDate) && !empty($pklEndDate);
+
+        if ($hasPklRange) {
+            $completedDays = DB::table('attendances')
+                ->where('student_id', $user->id)
+                ->whereNotNull('check_out_at')
+                ->whereBetween('attendance_date', [$pklStartDate, $pklEndDate])
+                ->whereRaw('DAYOFWEEK(attendance_date) NOT IN (1, 6, 7)')
+                ->count();
+
+            $targetDays = 0;
+            $cursor = Carbon::parse($pklStartDate, 'Asia/Jakarta')->startOfDay();
+            $endCursor = Carbon::parse($pklEndDate, 'Asia/Jakarta')->startOfDay();
+            while ($cursor->lessThanOrEqualTo($endCursor)) {
+                if (!in_array($cursor->dayOfWeek, [Carbon::FRIDAY, Carbon::SATURDAY, Carbon::SUNDAY], true)) {
+                    $targetDays++;
+                }
+                $cursor->addDay();
+            }
+        } else {
+            $completedDays = DB::table('attendances')
+                ->where('student_id', $user->id)
+                ->whereNotNull('check_out_at')
+                ->count();
+            $targetDays = 90;
+        }
+
+        $progressPercent = $targetDays > 0
+            ? min(100, (int) round(($completedDays / $targetDays) * 100))
+            : 0;
 
         return view('dashboard.student', [
             'todayAttendance' => $todayAttendance,
@@ -166,13 +198,44 @@ Route::middleware('auth')->group(function () {
         $user = $request->user();
         abort_unless($user->role === 'student', 403);
 
-        $completedDays = DB::table('attendances')
-            ->where('student_id', $user->id)
-            ->whereNotNull('check_out_at')
-            ->count();
+        $profile = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles')
+                ->where('student_id', $user->id)
+                ->first(['pkl_start_date', 'pkl_end_date'])
+            : null;
 
-        $targetDays = 90;
-        $progressPercent = min(100, (int) round(($completedDays / $targetDays) * 100));
+        $pklStartDate = data_get($profile, 'pkl_start_date');
+        $pklEndDate = data_get($profile, 'pkl_end_date');
+        $hasPklRange = !empty($pklStartDate) && !empty($pklEndDate);
+
+        if ($hasPklRange) {
+            $completedDays = DB::table('attendances')
+                ->where('student_id', $user->id)
+                ->whereNotNull('check_out_at')
+                ->whereBetween('attendance_date', [$pklStartDate, $pklEndDate])
+                ->whereRaw('DAYOFWEEK(attendance_date) NOT IN (1, 6, 7)')
+                ->count();
+
+            $targetDays = 0;
+            $cursor = Carbon::parse($pklStartDate, 'Asia/Jakarta')->startOfDay();
+            $endCursor = Carbon::parse($pklEndDate, 'Asia/Jakarta')->startOfDay();
+            while ($cursor->lessThanOrEqualTo($endCursor)) {
+                if (!in_array($cursor->dayOfWeek, [Carbon::FRIDAY, Carbon::SATURDAY, Carbon::SUNDAY], true)) {
+                    $targetDays++;
+                }
+                $cursor->addDay();
+            }
+        } else {
+            $completedDays = DB::table('attendances')
+                ->where('student_id', $user->id)
+                ->whereNotNull('check_out_at')
+                ->count();
+            $targetDays = 90;
+        }
+
+        $progressPercent = $targetDays > 0
+            ? min(100, (int) round(($completedDays / $targetDays) * 100))
+            : 0;
 
         $rows = DB::table('attendances as a')
             ->leftJoin('daily_logs as d', function ($join) {
@@ -213,6 +276,95 @@ Route::middleware('auth')->group(function () {
             'progressPercent' => $progressPercent,
         ]);
     })->name('dashboard.student.completion');
+
+    Route::get('/dashboard/student/data', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'student', 403);
+
+        $profile = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles')
+                ->where('student_id', $user->id)
+                ->first()
+            : null;
+
+        $profileIsComplete = $profile
+            && filled($user->name)
+            && filled(data_get($profile, 'birth_place'))
+            && filled(data_get($profile, 'birth_date'))
+            && filled(data_get($profile, 'major_name'))
+            && filled(data_get($profile, 'address'))
+            && filled(data_get($profile, 'phone_number'))
+            && filled(data_get($profile, 'pkl_place_name'))
+            && filled(data_get($profile, 'pkl_place_address'))
+            && filled(data_get($profile, 'pkl_place_phone'))
+            && filled(data_get($profile, 'pkl_start_date'))
+            && filled(data_get($profile, 'pkl_end_date'))
+            && filled(data_get($profile, 'mentor_teacher_name'))
+            && filled(data_get($profile, 'school_supervisor_teacher_name'))
+            && filled(data_get($profile, 'company_instructor_position'));
+
+        return view('dashboard.student-data', [
+            'profile' => $profile,
+            'profileIsComplete' => $profileIsComplete,
+        ]);
+    })->name('dashboard.student.data-page');
+
+    Route::post('/dashboard/student/data', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'student', 403);
+
+        if (!Schema::hasTable('student_profiles')) {
+            return back()->withErrors(['student_data' => 'Student data table is not ready yet. Please run database migrations first.']);
+        }
+
+        $validated = $request->validate([
+            'student_name' => ['required', 'string', 'max:255'],
+            'birth_place' => ['required', 'string', 'max:120'],
+            'birth_date' => ['required', 'date', 'before_or_equal:today'],
+            'major_name' => ['required', 'in:RPL,BDP,AKL'],
+            'phone_number' => ['required', 'string', 'max:30'],
+            'address' => ['required', 'string', 'max:2000'],
+            'pkl_place_name' => ['required', 'string', 'max:150'],
+            'pkl_place_address' => ['required', 'string', 'max:2000'],
+            'pkl_place_phone' => ['required', 'string', 'max:30'],
+            'pkl_start_date' => ['required', 'date', 'after_or_equal:today'],
+            'pkl_end_date' => ['required', 'date', 'after_or_equal:pkl_start_date'],
+            'mentor_teacher_name' => ['required', 'string', 'max:150'],
+            'school_supervisor_teacher_name' => ['required', 'string', 'max:150'],
+            'company_instructor_position' => ['required', 'string', 'max:150'],
+        ]);
+
+        $wibNow = Carbon::now('Asia/Jakarta');
+        DB::table('users')
+            ->where('id', $user->id)
+            ->update([
+                'name' => $validated['student_name'],
+                'updated_at' => $wibNow,
+            ]);
+
+        DB::table('student_profiles')->updateOrInsert(
+            ['student_id' => $user->id],
+            [
+                'birth_place' => $validated['birth_place'],
+                'birth_date' => $validated['birth_date'],
+                'major_name' => $validated['major_name'],
+                'phone_number' => $validated['phone_number'],
+                'address' => $validated['address'],
+                'pkl_place_name' => $validated['pkl_place_name'],
+                'pkl_place_address' => $validated['pkl_place_address'],
+                'pkl_place_phone' => $validated['pkl_place_phone'],
+                'pkl_start_date' => $validated['pkl_start_date'],
+                'pkl_end_date' => $validated['pkl_end_date'],
+                'mentor_teacher_name' => $validated['mentor_teacher_name'],
+                'school_supervisor_teacher_name' => $validated['school_supervisor_teacher_name'],
+                'company_instructor_position' => $validated['company_instructor_position'],
+                'updated_at' => $wibNow,
+                'created_at' => $wibNow,
+            ]
+        );
+
+        return back()->with('status', 'Student data saved.');
+    })->name('dashboard.student.data.save');
 
     Route::post('/dashboard/student/task-log', function (Request $request) {
         $user = $request->user();
