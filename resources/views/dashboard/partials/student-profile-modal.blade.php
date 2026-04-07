@@ -128,7 +128,7 @@
             </div>
         @endif
 
-        <form id="profile-form" method="POST" action="{{ route('dashboard.student.profile') }}">
+        <form id="profile-form" method="POST" action="{{ $profileUpdateRoute ?? route('dashboard.student.profile') }}">
             @csrf
 
             <div class="profile-modal-field">

@@ -63,6 +63,9 @@ Route::middleware('auth')->group(function () {
         if ($user->role === 'principal') {
             return redirect()->route('dashboard.principal.weekly-journal');
         }
+        if ($user->role === 'super_admin') {
+            return redirect()->route('dashboard.super-admin');
+        }
 
         return redirect('/')->with('status', 'Dashboard for your role is not available yet.');
     })->name('dashboard');
@@ -808,4 +811,192 @@ Route::middleware('auth')->group(function () {
             'weekEnd' => $weekEnd,
         ]);
     })->name('dashboard.principal.weekly-journal');
+
+    Route::get('/dashboard/super-admin', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $wibNow = Carbon::now('Asia/Jakarta');
+        $today = $wibNow->toDateString();
+
+        $companyStats = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles as sp')
+                ->join('users as u', 'u.id', '=', 'sp.student_id')
+                ->where('u.role', 'student')
+                ->whereNotNull('sp.pkl_place_name')
+                ->whereDate('sp.pkl_start_date', '<=', $today)
+                ->whereDate('sp.pkl_end_date', '>=', $today)
+                ->groupBy('sp.pkl_place_name', 'sp.pkl_place_address')
+                ->selectRaw("
+                    sp.pkl_place_name as company_name,
+                    sp.pkl_place_address as company_address,
+                    'Not specified' as industry_sector,
+                    COUNT(DISTINCT sp.student_id) as slot_capacity
+                ")
+                ->orderByDesc('slot_capacity')
+                ->orderBy('company_name')
+                ->get()
+            : collect();
+
+        $companyMapPoints = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles as sp')
+                ->join('attendances as a', 'a.student_id', '=', 'sp.student_id')
+                ->whereNotNull('sp.pkl_place_name')
+                ->whereNotNull('a.latitude')
+                ->whereNotNull('a.longitude')
+                ->whereDate('sp.pkl_start_date', '<=', $today)
+                ->whereDate('sp.pkl_end_date', '>=', $today)
+                ->groupBy('sp.pkl_place_name', 'sp.pkl_place_address')
+                ->selectRaw("
+                    sp.pkl_place_name as company_name,
+                    sp.pkl_place_address as company_address,
+                    AVG(a.latitude) as latitude,
+                    AVG(a.longitude) as longitude,
+                    COUNT(DISTINCT sp.student_id) as active_students
+                ")
+                ->get()
+            : collect();
+
+        $majorDistribution = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles as sp')
+                ->join('users as u', 'u.id', '=', 'sp.student_id')
+                ->where('u.role', 'student')
+                ->whereNotNull('sp.major_name')
+                ->whereDate('sp.pkl_start_date', '<=', $today)
+                ->whereDate('sp.pkl_end_date', '>=', $today)
+                ->groupBy('sp.major_name')
+                ->selectRaw('sp.major_name as major, COUNT(*) as total')
+                ->orderByDesc('total')
+                ->get()
+            : collect();
+
+        $heatStart = $wibNow->copy()->subDays(29)->toDateString();
+        $attendanceByDate = DB::table('attendances')
+            ->whereDate('attendance_date', '>=', $heatStart)
+            ->whereDate('attendance_date', '<=', $today)
+            ->whereNotNull('check_in_at')
+            ->groupBy('attendance_date')
+            ->selectRaw('attendance_date, COUNT(DISTINCT student_id) as total')
+            ->pluck('total', 'attendance_date');
+
+        $heatmap = collect();
+        $maxAttendance = 0;
+        for ($i = 29; $i >= 0; $i--) {
+            $date = $wibNow->copy()->subDays($i)->toDateString();
+            $total = (int) ($attendanceByDate[$date] ?? 0);
+            $maxAttendance = max($maxAttendance, $total);
+            $heatmap->push([
+                'date' => $date,
+                'total' => $total,
+            ]);
+        }
+
+        $attendanceFeed = Schema::hasTable('student_profiles')
+            ? DB::table('attendances as a')
+                ->leftJoin('student_profiles as sp', 'sp.student_id', '=', 'a.student_id')
+                ->whereNotNull('a.check_in_at')
+                ->whereDate('a.attendance_date', '>=', $wibNow->copy()->subDays(14)->toDateString())
+                ->orderByDesc('a.check_in_at')
+                ->limit(20)
+                ->get([
+                    'a.check_in_at as happened_at',
+                    'sp.major_name',
+                    'sp.pkl_place_name',
+                ])
+                ->map(function ($row) {
+                    $major = $row->major_name ?: 'Unknown major';
+                    $company = $row->pkl_place_name ?: 'Unknown company';
+                    return [
+                        'happened_at' => $row->happened_at,
+                        'message' => "A student from {$major} just checked in at {$company}.",
+                    ];
+                })
+            : collect();
+
+        $journalFeed = Schema::hasTable('student_profiles')
+            ? DB::table('weekly_journals as wj')
+                ->leftJoin('student_profiles as sp', 'sp.student_id', '=', 'wj.student_id')
+                ->whereIn('wj.status', ['approved', 'needs_revision', 'submitted'])
+                ->orderByDesc('wj.updated_at')
+                ->limit(20)
+                ->get([
+                    'wj.updated_at as happened_at',
+                    'wj.status',
+                    'sp.major_name',
+                ])
+                ->map(function ($row) {
+                    $major = $row->major_name ?: 'Unknown major';
+                    $statusText = $row->status === 'approved'
+                        ? 'validated'
+                        : ($row->status === 'needs_revision' ? 'marked for revision' : 'submitted');
+                    return [
+                        'happened_at' => $row->happened_at,
+                        'message' => "Weekly Journal {$statusText} for {$major} major.",
+                    ];
+                })
+            : collect();
+
+        $activityFeed = $attendanceFeed
+            ->concat($journalFeed)
+            ->sortByDesc('happened_at')
+            ->take(20)
+            ->values();
+
+        return view('dashboard.super-admin', [
+            'companyStats' => $companyStats,
+            'companyMapPoints' => $companyMapPoints,
+            'majorDistribution' => $majorDistribution,
+            'heatmap' => $heatmap,
+            'maxAttendance' => $maxAttendance,
+            'activityFeed' => $activityFeed,
+            'timelineStart' => '2026-01-01',
+            'timelineEnd' => '2026-06-30',
+            'timelineStatus' => 'Week 12 - Monitoring Phase',
+        ]);
+    })->name('dashboard.super-admin');
+
+    Route::post('/dashboard/super-admin/profile', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'nis' => ['required', 'string', 'max:50', 'unique:users,nis,' . $user->id],
+            'avatar_crop_data' => ['nullable', 'string'],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $user->name = $validated['name'];
+        $user->nis = $validated['nis'];
+
+        if (!empty($validated['avatar_crop_data'])) {
+            $base64 = $validated['avatar_crop_data'];
+            $prefix = 'data:image/png;base64,';
+
+            if (!Str::startsWith($base64, $prefix)) {
+                return back()->withErrors(['avatar_crop_data' => 'Invalid cropped image format.']);
+            }
+
+            $decoded = base64_decode(substr($base64, strlen($prefix)), true);
+            if ($decoded === false) {
+                return back()->withErrors(['avatar_crop_data' => 'Could not process cropped image.']);
+            }
+
+            if (!empty($user->avatar_url) && !Str::startsWith($user->avatar_url, ['http://', 'https://'])) {
+                Storage::disk('public')->delete($user->avatar_url);
+            }
+
+            $path = 'avatars/' . Str::uuid() . '.png';
+            Storage::disk('public')->put($path, $decoded);
+            $user->avatar_url = $path;
+        }
+
+        if (!empty($validated['password'])) {
+            $user->password = $validated['password'];
+        }
+
+        $user->save();
+
+        return back()->with('status', 'Profile updated successfully.');
+    })->name('dashboard.super-admin.profile');
 });
