@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -8,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 Route::get('/', function () {
     return view('welcome');
@@ -999,4 +1001,205 @@ Route::middleware('auth')->group(function () {
 
         return back()->with('status', 'Profile updated successfully.');
     })->name('dashboard.super-admin.profile');
+
+    Route::get('/dashboard/super-admin/users', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $q = trim((string) $request->query('q', ''));
+        $role = trim((string) $request->query('role', ''));
+
+        $users = User::query()
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($inner) use ($q) {
+                    $inner->where('name', 'like', "%{$q}%")
+                        ->orWhere('nis', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%");
+                });
+            })
+            ->when($role !== '', fn ($query) => $query->where('role', $role))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $profileRows = Schema::hasTable('student_profiles')
+            ? DB::table('student_profiles')
+                ->whereIn('student_id', $users->pluck('id'))
+                ->get()
+                ->keyBy('student_id')
+            : collect();
+
+        $userFormData = [];
+        foreach ($users as $row) {
+            $profile = $profileRows->get($row->id);
+            $userFormData[$row->id] = [
+                'id' => $row->id,
+                'name' => $row->name,
+                'nis' => $row->nis,
+                'email' => $row->email,
+                'role' => $row->role,
+                'major_name' => data_get($profile, 'major_name'),
+                'birth_place' => data_get($profile, 'birth_place'),
+                'birth_date' => data_get($profile, 'birth_date'),
+                'address' => data_get($profile, 'address'),
+                'phone_number' => data_get($profile, 'phone_number'),
+                'pkl_place_name' => data_get($profile, 'pkl_place_name'),
+                'pkl_place_address' => data_get($profile, 'pkl_place_address'),
+                'pkl_place_phone' => data_get($profile, 'pkl_place_phone'),
+                'pkl_start_date' => data_get($profile, 'pkl_start_date'),
+                'pkl_end_date' => data_get($profile, 'pkl_end_date'),
+                'mentor_teacher_name' => data_get($profile, 'mentor_teacher_name'),
+                'school_supervisor_teacher_name' => data_get($profile, 'school_supervisor_teacher_name'),
+                'company_instructor_position' => data_get($profile, 'company_instructor_position'),
+            ];
+        }
+
+        return view('dashboard.super-admin-users', [
+            'users' => $users,
+            'q' => $q,
+            'roleFilter' => $role,
+            'roleOptions' => User::ROLES,
+            'userFormData' => $userFormData,
+        ]);
+    })->name('dashboard.super-admin.users');
+
+    Route::post('/dashboard/super-admin/users/create', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', 'in:' . implode(',', User::ROLES)],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $baseNis = 250510;
+        $nisPrefix = (string) $baseNis;
+        $maxNumericNis = User::query()
+            ->whereNotNull('nis')
+            ->where('nis', 'like', $nisPrefix . '%')
+            ->pluck('nis')
+            ->map(function ($value) {
+                $value = (string) $value;
+                return ctype_digit($value) ? (int) $value : null;
+            })
+            ->filter()
+            ->max();
+
+        $nextNis = (string) (max($baseNis - 1, (int) ($maxNumericNis ?? 0)) + 1);
+
+        $created = new User();
+        $created->name = $validated['name'];
+        $created->email = $validated['email'];
+        $created->nis = $nextNis;
+        $created->role = $validated['role'];
+        $created->password = $validated['password'];
+        $created->save();
+
+        return back()->with('status', "User created successfully. Auto NIS: {$nextNis}");
+    })->name('dashboard.super-admin.users.create');
+
+    Route::get('/dashboard/super-admin/users/{managedUser}/edit', function (Request $request, int $managedUser) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $target = User::findOrFail($managedUser);
+
+        return view('dashboard.super-admin-users-edit', [
+            'target' => $target,
+            'roleOptions' => User::ROLES,
+        ]);
+    })->name('dashboard.super-admin.users.edit');
+
+    Route::post('/dashboard/super-admin/users/{managedUser}/edit', function (Request $request, int $managedUser) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $target = User::findOrFail($managedUser);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $target->id],
+            'role' => ['required', 'in:' . implode(',', User::ROLES)],
+            'password' => ['nullable', 'string', 'min:6', 'confirmed'],
+            'major_name' => [
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT),
+                'nullable',
+                'in:RPL,BDP,AKL',
+            ],
+            'birth_place' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:120'],
+            'birth_date' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'date'],
+            'address' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:2000'],
+            'phone_number' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:30'],
+            'pkl_place_name' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:150'],
+            'pkl_place_address' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:2000'],
+            'pkl_place_phone' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:30'],
+            'pkl_start_date' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'date'],
+            'pkl_end_date' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'date', 'after_or_equal:pkl_start_date'],
+            'mentor_teacher_name' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:150'],
+            'school_supervisor_teacher_name' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:150'],
+            'company_instructor_position' => [Rule::requiredIf(fn () => $request->input('role') === User::ROLE_STUDENT), 'nullable', 'string', 'max:150'],
+        ]);
+
+        $target->name = $validated['name'];
+        $target->email = $validated['email'];
+        $target->role = $validated['role'];
+        if (!empty($validated['password'])) {
+            $target->password = $validated['password'];
+        }
+        $target->save();
+
+        if (Schema::hasTable('student_profiles')) {
+            DB::table('student_profiles')->updateOrInsert(
+                ['student_id' => $target->id],
+                [
+                    'major_name' => $validated['major_name'] ?? null,
+                    'birth_place' => $validated['birth_place'] ?? null,
+                    'birth_date' => $validated['birth_date'] ?? null,
+                    'address' => $validated['address'] ?? null,
+                    'phone_number' => $validated['phone_number'] ?? null,
+                    'pkl_place_name' => $validated['pkl_place_name'] ?? null,
+                    'pkl_place_address' => $validated['pkl_place_address'] ?? null,
+                    'pkl_place_phone' => $validated['pkl_place_phone'] ?? null,
+                    'pkl_start_date' => $validated['pkl_start_date'] ?? null,
+                    'pkl_end_date' => $validated['pkl_end_date'] ?? null,
+                    'mentor_teacher_name' => $validated['mentor_teacher_name'] ?? null,
+                    'school_supervisor_teacher_name' => $validated['school_supervisor_teacher_name'] ?? null,
+                    'company_instructor_position' => $validated['company_instructor_position'] ?? null,
+                    'updated_at' => now('Asia/Jakarta'),
+                    'created_at' => now('Asia/Jakarta'),
+                ]
+            );
+        }
+
+        return redirect()->route('dashboard.super-admin.users')->with('status', 'User updated successfully.');
+    })->name('dashboard.super-admin.users.update');
+
+    Route::post('/dashboard/super-admin/users/{managedUser}/delete', function (Request $request, int $managedUser) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $target = User::findOrFail($managedUser);
+        if ($target->id === $user->id) {
+            return back()->withErrors(['user_delete' => 'You cannot delete your own account.']);
+        }
+
+        $target->delete();
+
+        return back()->with('status', 'User deleted successfully.');
+    })->name('dashboard.super-admin.users.delete');
+
+    Route::post('/dashboard/super-admin/users/{managedUser}/reset-password', function (Request $request, int $managedUser) {
+        $user = $request->user();
+        abort_unless($user->role === 'super_admin', 403);
+
+        $target = User::findOrFail($managedUser);
+        $temporaryPassword = Str::upper(Str::random(8));
+        $target->password = $temporaryPassword;
+        $target->save();
+
+        return back()->with('status', "Password for {$target->name} reset. Temporary password: {$temporaryPassword}");
+    })->name('dashboard.super-admin.users.reset-password');
 });

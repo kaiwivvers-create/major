@@ -446,6 +446,7 @@
                 <a href="#heatmap-section">Attendance Heatmap</a>
                 <a href="#activity-section">Current Activity</a>
                 <a href="#timeline-section">Implementation Timeline</a>
+                <a href="{{ route('dashboard.super-admin.users') }}">Users</a>
                 <a href="{{ route('dashboard') }}">Main Dashboard</a>
                 <a href="{{ url('/') }}">Back to Home</a>
             </nav>
