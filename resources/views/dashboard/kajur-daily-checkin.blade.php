@@ -48,6 +48,7 @@
             flex-direction: column;
             border-right: 1px solid var(--border);
             background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(10px);
             padding: 16px 14px;
         }
 
@@ -75,6 +76,12 @@
             padding: 10px 12px;
             background: rgba(30, 41, 59, 0.6);
             font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
         }
 
         .sidebar-nav a.active {
@@ -100,32 +107,39 @@
             color: var(--text);
             background: rgba(15, 23, 42, 0.52);
             cursor: pointer;
-            padding: 8px 10px;
+            padding: 10px;
             display: grid;
-            grid-template-columns: 40px 1fr 16px;
+            grid-template-columns: 42px 1fr 18px;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             text-align: left;
             min-width: 0;
             overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .profile-trigger:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, 0.35);
+            transform: translateY(-1px);
         }
 
         .profile-avatar {
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 999px;
             border: 1px solid rgba(56, 189, 248, 0.55);
             background: linear-gradient(135deg, rgba(37,99,235,.28), rgba(56,189,248,.24));
             display: grid;
             place-items: center;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 700;
             overflow: hidden;
         }
         .profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .profile-name { font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .profile-meta { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .profile-arrow { color: var(--muted); font-size: 0.95rem; text-align: right; }
+        .profile-meta { font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-arrow { color: var(--muted); font-size: 1rem; text-align: right; }
 
         .profile-modal-backdrop { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.62); display: none; align-items: center; justify-content: center; z-index: 2200; padding: 16px; }
         .profile-modal-backdrop.open { display: flex; }
@@ -139,23 +153,18 @@
         .profile-modal-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
         .profile-modal-alert.error { border: 1px solid rgba(248, 113, 113, 0.6); border-radius: 12px; padding: 10px 12px; background: rgba(127, 29, 29, 0.25); margin-bottom: 12px; }
 
-        .main {
-            padding: 16px;
-        }
+        .main { padding: 20px; }
 
-        .container {
-            max-width: 1500px;
-            margin: 0 auto;
-            display: grid;
-            gap: 14px;
-        }
+        .container { display: grid; gap: 14px; }
 
-        .card {
+        .topbar {
             border: 1px solid var(--border);
             border-radius: 14px;
-            background: rgba(15, 23, 42, 0.92);
-            padding: 14px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 14px 16px;
         }
+
+        .card { border: 1px solid var(--border); border-radius: 14px; background: linear-gradient(160deg, rgba(30,41,59,.94), rgba(15,23,42,.94)); padding: 14px; }
         .grid {
             display: grid;
             grid-template-columns: 1.35fr 1fr;
@@ -433,11 +442,15 @@
 
         <main class="main">
             <div class="container">
-                <section class="card">
-                    <h1>Kajur Daily Check-ins</h1>
-                    <p class="muted" style="margin-top:4px;">Showing student attendance by day for managed major: <strong>{{ strtoupper((string) $managedMajor) }}</strong>.</p>
-                    <p class="muted" style="margin-top:4px;">Check-in cutoff: <strong>{{ \Illuminate\Support\Str::substr((string) ($checkInCutoffTime ?? '08:00:00'), 0, 5) }} WIB</strong>.</p>
+                <header class="topbar">
+                    <div>
+                        <h1>Kajur Daily Check-ins</h1>
+                        <p class="muted" style="margin-top:4px;">Showing student attendance by day for managed major: <strong>{{ strtoupper((string) $managedMajor) }}</strong>.</p>
+                        <p class="muted" style="margin-top:4px;">Check-in cutoff: <strong>{{ \Illuminate\Support\Str::substr((string) ($checkInCutoffTime ?? '08:00:00'), 0, 5) }} WIB</strong>.</p>
+                    </div>
+                </header>
 
+                <section class="card">
                     @if (session('status'))
                         <div class="alert">{{ session('status') }}</div>
                     @endif

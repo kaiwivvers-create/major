@@ -52,6 +52,7 @@
             flex-direction: column;
             border-right: 1px solid var(--border);
             background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(10px);
             padding: 16px 14px;
         }
 
@@ -79,6 +80,12 @@
             padding: 10px 12px;
             background: rgba(30, 41, 59, 0.6);
             font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-nav a:hover {
+            border-color: var(--accent);
+            color: var(--accent);
         }
 
         .sidebar-nav a.active {
@@ -96,31 +103,15 @@
             padding: 12px;
         }
 
-        .main {
-            padding: 16px;
-        }
+        .main { padding: 20px; }
 
         .container {
-            max-width: 1500px;
-            margin: 0 auto;
             display: grid;
             gap: 14px;
         }
 
-        .card {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: rgba(15, 23, 42, 0.92);
-            padding: 14px;
-        }
-
-        .page-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
+        .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid var(--border); border-radius:14px; background:rgba(15,23,42,.9); padding:14px 16px; }
+        .card { border: 1px solid var(--border); border-radius: 14px; background: linear-gradient(160deg, rgba(30,41,59,.94), rgba(15,23,42,.94)); padding: 14px; }
 
         .title-row {
             display: flex;
@@ -176,7 +167,7 @@
             overflow: hidden;
         }
 
-        .profile-trigger:hover { border-color: var(--primary); }
+        .profile-trigger:hover { border-color: var(--accent); box-shadow: 0 8px 18px rgba(2, 6, 23, 0.35); transform: translateY(-1px); }
 
         .profile-avatar {
             width: 40px;
@@ -597,17 +588,17 @@
 
         <main class="main">
     <div class="container">
-        <section class="card">
-            <div class="page-head">
-                <div>
-                    <div class="title-row">
-                        <h1>Kajur Dashboard</h1>
-                        <span class="badge">Managed Major: {{ strtoupper((string) ($managedMajor ?? '-')) }}</span>
-                    </div>
-                    <p class="muted" style="margin-top:4px;">Monitoring {{ strtoupper((string) ($selectedMajor ?? '-')) }} - Week {{ \Illuminate\Support\Carbon::parse($weekStart, 'Asia/Jakarta')->format('d M Y') }} to {{ \Illuminate\Support\Carbon::parse($weekEnd, 'Asia/Jakarta')->format('d M Y') }}</p>
+        <header class="topbar">
+            <div>
+                <div class="title-row">
+                    <h1>Kajur Dashboard</h1>
+                    <span class="badge">Managed Major: {{ strtoupper((string) ($managedMajor ?? '-')) }}</span>
                 </div>
+                <p class="muted" style="margin-top:4px;">Monitoring {{ strtoupper((string) ($selectedMajor ?? '-')) }} - Week {{ \Illuminate\Support\Carbon::parse($weekStart, 'Asia/Jakarta')->format('d M Y') }} to {{ \Illuminate\Support\Carbon::parse($weekEnd, 'Asia/Jakarta')->format('d M Y') }}</p>
             </div>
+        </header>
 
+        <section class="card">
             @if (session('status'))
                 <div class="alert success">{{ session('status') }}</div>
             @endif
@@ -936,4 +927,3 @@
     </script>
 </body>
 </html>
-
