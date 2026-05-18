@@ -1,0 +1,9 @@
+<?php
+$z = new ZipArchive;
+if ($z->open("../vendor.zip") === true) {
+    $z->extractTo("../");
+    $z->close();
+    echo "Unzipped successfully!";
+} else {
+    echo "Failed";
+}

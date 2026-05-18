@@ -1,0 +1,9 @@
+{
+  "conflict_detect": true,
+  "large_file_warning": true,
+  "sensitive_data_scan": true,
+  "syntax_guard": true,
+  "smart_context": true,
+  "quota_watcher": true,
+  "integrity_verify": true
+}

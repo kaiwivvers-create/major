@@ -1,0 +1,15 @@
+<?php
+error_reporting(E_ALL);
+ini_set("display_errors", 1);
+try {
+    require __DIR__."/../vendor/autoload.php";
+    $app = require_once __DIR__."/../bootstrap/app.php";
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $kernel->handle(Illuminate\Http\Request::capture()); // Wake up Facades!
+
+    echo "Starting Migration...<br>";
+    \Illuminate\Support\Facades\Artisan::call("migrate", ["--force" => true]);
+    echo "Success: <pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
+} catch (\Throwable $e) {
+    echo "Fatal Error: " . $e->getMessage();
+}

@@ -1,0 +1,345 @@
+@php
+    $brandSuffix = isset($suffix) && filled($suffix) ? ' - ' . $suffix : '';
+@endphp
+
+<style>
+    :root {
+        --primary: {{ $appBranding->primary_color ?? '#2563eb' }};
+        --secondary: {{ $appBranding->secondary_color ?? '#10b981' }};
+        --accent: {{ $appBranding->accent_color ?? '#38bdf8' }};
+    }
+
+    html[data-theme="light"] {
+        --bg: #fff7ed !important;
+        --surface: #fffaf4 !important;
+        --surface-2: #ffedd5 !important;
+        --primary: {{ $appBranding->primary_color ?? '#f97316' }} !important;
+        --accent: {{ $appBranding->accent_color ?? '#fb923c' }} !important;
+        --text: #7c2d12 !important;
+        --muted: #9a3412 !important;
+        --border: #fdba74 !important;
+    }
+
+    html, body {
+        background:
+            radial-gradient(1000px 500px at 10% -10%, rgba(56, 189, 248, 0.2), transparent),
+            radial-gradient(900px 450px at 100% 10%, rgba(37, 99, 235, 0.2), transparent),
+            var(--bg, #0f172a) !important;
+        background-attachment: fixed !important;
+    }
+
+    html[data-theme="light"] body {
+        background:
+            radial-gradient(1000px 500px at 10% -10%, rgba(251, 146, 60, 0.25), transparent),
+            radial-gradient(900px 450px at 100% 10%, rgba(249, 115, 22, 0.22), transparent),
+            #fff7ed !important;
+    }
+
+    html[data-theme="light"] .sidebar {
+        background: rgba(255, 247, 237, 0.92) !important;
+        border-right-color: rgba(251, 146, 60, 0.45) !important;
+    }
+
+    html[data-theme="light"] .sidebar-brand,
+    html[data-theme="light"] .sidebar-profile {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+    }
+
+    html[data-theme="light"] .sidebar-nav a,
+    html[data-theme="light"] .profile-trigger {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .sidebar-nav a.active {
+        background: linear-gradient(135deg, rgba(251, 146, 60, 0.3), rgba(234, 88, 12, 0.3)) !important;
+        border-color: #ea580c !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .topbar,
+    html[data-theme="light"] .card,
+    html[data-theme="light"] .page-header {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .activity-feed,
+    html[data-theme="light"] .timeline,
+    html[data-theme="light"] .timeline-list,
+    html[data-theme="light"] .table-wrap {
+        background: rgba(255, 250, 244, 0.78) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .activity-item,
+    html[data-theme="light"] .timeline-row,
+    html[data-theme="light"] .student-card,
+    html[data-theme="light"] .detail-box,
+    html[data-theme="light"] .map-student-item,
+    html[data-theme="light"] .stat,
+    html[data-theme="light"] .history-card,
+    html[data-theme="light"] .history-item,
+    html[data-theme="light"] .timeline-item,
+    html[data-theme="light"] .checkin-box,
+    html[data-theme="light"] .crop-wrap,
+    html[data-theme="light"] .branding-crop-tools {
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 247, 237, 0.9)) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .table-wrap table,
+    html[data-theme="light"] table {
+        background: rgba(255, 250, 244, 0.92) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] table thead th,
+    html[data-theme="light"] th {
+        background: rgba(255, 237, 213, 0.95) !important;
+        color: #7c2d12 !important;
+        border-color: rgba(251, 146, 60, 0.35) !important;
+    }
+
+    html[data-theme="light"] td {
+        border-color: rgba(251, 146, 60, 0.28) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .modal-backdrop,
+    html[data-theme="light"] .profile-modal-backdrop,
+    html[data-theme="light"] .map-students-modal {
+        background: rgba(124, 45, 18, 0.24) !important;
+    }
+
+    html[data-theme="light"] .map-students-panel,
+    html[data-theme="light"] .profile-modal-panel,
+    html[data-theme="light"] .modal,
+    html[data-theme="light"] .profile-modal {
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 237, 0.98)) !important;
+        border-color: rgba(251, 146, 60, 0.45) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .modal .field input,
+    html[data-theme="light"] .modal .field select,
+    html[data-theme="light"] .modal .field textarea,
+    html[data-theme="light"] .profile-modal .field input,
+    html[data-theme="light"] .profile-modal .field select,
+    html[data-theme="light"] .profile-modal .field textarea,
+    html[data-theme="light"] .profile-modal-field input,
+    html[data-theme="light"] .profile-modal-field select,
+    html[data-theme="light"] .profile-modal-field textarea {
+        background: #fffaf4 !important;
+        border-color: rgba(251, 146, 60, 0.55) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] .profile-modal-alert.error,
+    html[data-theme="light"] .alert.error,
+    html[data-theme="light"] .error-text {
+        color: #9f1239 !important;
+        border-color: rgba(244, 63, 94, 0.45) !important;
+        background: rgba(255, 228, 230, 0.7) !important;
+    }
+
+    html[data-theme="light"] button,
+    html[data-theme="light"] input[type="button"],
+    html[data-theme="light"] input[type="submit"],
+    html[data-theme="light"] input[type="reset"],
+    html[data-theme="light"] .btn,
+    html[data-theme="light"] .save-btn,
+    html[data-theme="light"] .profile-modal-btn,
+    html[data-theme="light"] .modal-close,
+    html[data-theme="light"] .profile-modal-close,
+    html[data-theme="light"] .map-students-btn,
+    html[data-theme="light"] .checkin-btn,
+    html[data-theme="light"] .page-link,
+    html[data-theme="light"] .small-btn,
+    html[data-theme="light"] .branding-crop-btn,
+    html[data-theme="light"] .crop-btn {
+        background: #f97316 !important;
+        background-image: none !important;
+        border-color: #ea580c !important;
+        color: #fff7ed !important;
+    }
+
+    html[data-theme="light"] button:hover,
+    html[data-theme="light"] input[type="button"]:hover,
+    html[data-theme="light"] input[type="submit"]:hover,
+    html[data-theme="light"] input[type="reset"]:hover,
+    html[data-theme="light"] .btn:hover,
+    html[data-theme="light"] .save-btn:hover,
+    html[data-theme="light"] .profile-modal-btn:hover,
+    html[data-theme="light"] .modal-close:hover,
+    html[data-theme="light"] .profile-modal-close:hover,
+    html[data-theme="light"] .map-students-btn:hover,
+    html[data-theme="light"] .checkin-btn:hover,
+    html[data-theme="light"] .page-link:hover,
+    html[data-theme="light"] .small-btn:hover,
+    html[data-theme="light"] .branding-crop-btn:hover,
+    html[data-theme="light"] .crop-btn:hover {
+        background: #ea580c !important;
+        background-image: none !important;
+        border-color: #c2410c !important;
+        color: #fff7ed !important;
+    }
+
+    html[data-theme="light"] .muted {
+        color: #9a3412 !important;
+    }
+
+    html[data-theme="light"] input,
+    html[data-theme="light"] select,
+    html[data-theme="light"] textarea {
+        background: #fffaf4 !important;
+        border-color: rgba(251, 146, 60, 0.55) !important;
+        color: #7c2d12 !important;
+    }
+
+    html[data-theme="light"] input:focus,
+    html[data-theme="light"] select:focus,
+    html[data-theme="light"] textarea:focus {
+        outline: none !important;
+        border-color: #f97316 !important;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18) !important;
+    }
+
+    .topbar,
+    .page-header {
+        padding: 14px 16px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .topbar h1,
+    .page-header h1 {
+        font-size: 1.12rem !important;
+        line-height: 1.3 !important;
+        margin-bottom: 4px !important;
+    }
+
+    .topbar p,
+    .page-header p {
+        font-size: 0.92rem !important;
+        line-height: 1.55 !important;
+        max-width: 72ch !important;
+        margin: 0 !important;
+    }
+
+    .theme-toggle-btn {
+        display: none !important;
+    }
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        background: rgba(15, 23, 42, 0.72);
+        color: #e2e8f0;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        font-size: 1rem;
+        line-height: 1;
+        transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+        border-color: rgba(103, 232, 249, 0.75);
+        transform: translateY(-1px);
+    }
+
+    html[data-theme="light"] .theme-toggle-btn {
+        background: rgba(255, 250, 244, 0.95);
+        border-color: rgba(251, 146, 60, 0.55);
+        color: #9a3412;
+    }
+
+    html[data-theme="light"] * {
+        scrollbar-color: #f97316 #fffaf4 !important;
+    }
+
+    html[data-theme="light"] *::-webkit-scrollbar-track {
+        background: #fffaf4 !important;
+    }
+
+    html[data-theme="light"] *::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #fb923c, #ea580c) !important;
+        border: 2px solid #fffaf4 !important;
+        border-radius: 999px !important;
+    }
+
+    html[data-theme="light"] *::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #fdba74, #f97316) !important;
+    }
+</style>
+<script>
+    (() => {
+        const THEME_KEY = 'kips_theme_preference';
+        let chosen = 'dark';
+        const syncToggleButtons = () => {
+            const buttons = document.querySelectorAll('.theme-toggle-btn');
+            buttons.forEach((btn) => {
+                btn.innerHTML = chosen === 'light' ? '&#127769;' : '&#9728;';
+                btn.setAttribute('aria-label', chosen === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+                btn.setAttribute('title', chosen === 'light' ? 'Dark mode' : 'Light mode');
+            });
+        };
+        const applyTheme = (value, persist = true) => {
+            chosen = value === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', chosen);
+            if (persist) {
+                try {
+                    localStorage.setItem(THEME_KEY, chosen);
+                } catch (error) {
+                    // Ignore localStorage access issues.
+                }
+            }
+            syncToggleButtons();
+        };
+
+        try {
+            const stored = localStorage.getItem(THEME_KEY);
+            if (stored === 'light' || stored === 'dark') chosen = stored;
+        } catch (error) {
+            // Ignore localStorage access issues.
+        }
+        applyTheme(chosen, false);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', syncToggleButtons, { once: true });
+        } else {
+            syncToggleButtons();
+        }
+
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const toggle = target.closest('.theme-toggle-btn');
+            if (!toggle) return;
+            applyTheme(chosen === 'light' ? 'dark' : 'light');
+        });
+    })();
+</script>
+
+<div class="sidebar-brand" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+    <span style="display:flex; align-items:center; gap:10px; min-width:0;">
+        <span style="width:38px; height:38px; border-radius:12px; overflow:hidden; flex:0 0 38px; display:grid; place-items:center; border:1px solid rgba(56, 189, 248, 0.4); background:linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(56, 189, 248, 0.2)); color:#f8fafc; font-size:0.95rem; font-weight:800;">
+            @if (!empty($appBranding->logo_url))
+                <img
+                    src="{{ $appBranding->logo_url }}"
+                    alt="{{ $appBranding->display_name }} logo"
+                    style="width:100%; height:100%; object-fit:cover; display:block;"
+                    onerror="this.style.display='none'; this.parentElement.textContent='{{ $appBranding->short_display_name }}';"
+                >
+            @else
+                {{ $appBranding->short_display_name }}
+            @endif
+        </span>
+        <span style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $appBranding->display_name . $brandSuffix }}</span>
+    </span>
+    <button type="button" class="theme-toggle-btn" aria-label="Switch theme" title="Switch theme" style="display: none;">&#9728;</button>
+</div>

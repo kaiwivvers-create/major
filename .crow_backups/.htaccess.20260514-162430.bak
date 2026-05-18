@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+    
+    # DO NOT redirect the /pkl folder
+    RewriteCond %{REQUEST_URI} !^/pkl/
+    
+    # Redirect everything else to the public folder
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ /public/\ [L]
+</IfModule>

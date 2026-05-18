@@ -1,0 +1,9 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # If your folder is /pkl, set RewriteBase to /pkl/
+    # If it's the root, leave it as /
+    RewriteBase /pkl/
+    
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

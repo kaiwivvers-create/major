@@ -1,0 +1,8 @@
+{
+  "host": "bryan.rplkodingan.com",
+  "port": 21,
+  "user": "bryan@bryan.rplkodingan.com",
+  "password": "kai250510",
+  "base_dir": "/pkl",
+  "passive": true
+}

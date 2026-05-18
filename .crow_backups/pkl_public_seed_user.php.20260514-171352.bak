@@ -1,0 +1,21 @@
+<?php
+try {
+    require __DIR__."/../vendor/autoload.php";
+    $app = require_once __DIR__."/../bootstrap/app.php";
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $kernel->handle(Illuminate\Http\Request::capture());
+
+    $user = \App\Models\User::updateOrCreate(
+        ['nis' => '2505101'],
+        [
+            'name' => 'Super Admin',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('250510'),
+            'role' => 'super_admin'
+        ]
+    );
+
+    echo "User created successfully! NIS: 2505101 | PW: 250510";
+} catch (\Throwable $e) {
+    echo "Error: " . $e->getMessage();
+}
